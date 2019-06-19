@@ -11,6 +11,34 @@ enum FixtureEnum: String, Codable {
 	case oneHour = "1 Hour"
 }
 
+class SecureClass: NSObject, NSSecureCoding {
+	var value: Int
+	
+	init(value: Int) {
+		self.value = value
+	}
+
+	static var supportsSecureCoding: Bool { return true }
+	
+	func encode(with aCoder: NSCoder) {
+		aCoder.encode(value, forKey: "value")
+	}
+	
+	required init?(coder aDecoder: NSCoder) {
+		self.value = aDecoder.decodeInteger(forKey: "value")
+	}
+}
+
+struct TestStruct: Codable {
+	var string: String
+	var int: Int
+	
+	enum Keys: CodingKey {
+		case string
+		case int
+	}
+}
+
 let fixtureDate = Date()
 
 extension Defaults.Keys {
@@ -19,9 +47,30 @@ extension Defaults.Keys {
 	static let `enum` = Key<FixtureEnum>("enum", default: .oneHour)
 	static let data = Key<Data>("data", default: Data(bytes: []))
 	static let date = Key<Date>("date", default: fixtureDate)
+	static let secure = SecureKey<SecureClass>("secret", default: SecureClass(value: 10))
+	static let structure = Key<TestStruct>("structure", default: TestStruct(string: "2", int: 2))
 }
 
 final class DefaultsTests: XCTestCase {
+	
+	func testStructCoding() {
+		let structure = Defaults.Key<TestStruct>("structure", default: TestStruct(string: "2", int: 2))
+		XCTAssert(defaults[structure].string == "2")
+		XCTAssert(defaults[structure].int == 2)
+		defaults[structure].string = "3"
+		XCTAssert(defaults[structure].string == "3")
+		defaults[structure].int = 10
+		XCTAssert(defaults[structure].int == 10)
+	}
+	
+	func testSecureCoding() {
+		let defaultValue = SecureClass(value: 10)
+		let secureKey = Defaults.SecureKey<SecureClass>("secret", default: defaultValue)
+		XCTAssert(defaults[secureKey].value == 10)
+		defaults[secureKey].value = 20
+		XCTAssert(defaults[secureKey].value == 20)
+	}
+	
 	override func setUp() {
 		super.setUp()
 		defaults.clear()
